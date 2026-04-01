@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}AgriSense — AI-Powered Farming{% endblock %}
+
+{% block content %}
+
+<!-- ══ HERO ══════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="hero-bg-text" aria-hidden="true">GROW</div>
+
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="eyebrow">Powered by machine learning</span>
+      <h1>Know your field.<br><em>Feed the future.</em></h1>
+      <p class="hero-sub">
+        Enter soil and climate data. Our AI recommends the right crop,
+        flags disease early, and tracks your land over time.
+      </p>
+      <div class="hero-actions">
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('dashboard.index') }}" class="btn btn--primary">Open dashboard</a>
+          <a href="{{ url_for('ai.recommend') }}" class="btn btn--ghost">Predict a crop →</a>
+        {% else %}
+          <a href="{{ url_for('auth.register') }}" class="btn btn--primary">Start for free</a>
+          <a href="{{ url_for('blog.index') }}" class="btn btn--ghost">Read the research →</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="hero-metrics">
+      <div class="metric-card">
+        <span class="metric-val">22</span>
+        <span class="metric-label">Crops supported</span>
+      </div>
+      <div class="metric-card metric-card--accent">
+        <span class="metric-val">94%</span>
+        <span class="metric-label">Avg. model accuracy</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-val">7</span>
+        <span class="metric-label">Input parameters</span>
+      </div>
+      <div class="metric-card metric-card--accent">
+        <span class="metric-val">9</span>
+        <span class="metric-label">Diseases detected</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decorative field lines -->
+  <div class="field-lines" aria-hidden="true">
+    <div class="fl fl1"></div><div class="fl fl2"></div>
+    <div class="fl fl3"></div><div class="fl fl4"></div>
+    <div class="fl fl5"></div>
+  </div>
+</section>
+
+<!-- ══ FEATURES ══════════════════════════════════════════ -->
+<section class="features-section">
+  <header class="section-header">
+    <span class="eyebrow">What we do</span>
+    <h2>Four tools, one platform</h2>
+  </header>
+
+  <div class="features-grid">
+    <a href="{{ url_for('ai.recommend') }}" class="feat-card">
+      <div class="feat-icon">
+        <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h3>Crop recommendation</h3>
+      <p>Input N, P, K, pH, temperature, humidity and rainfall — get the best-fit crop instantly.</p>
+      <span class="feat-link">Try it →</span>
+    </a>
+
+    <a href="{{ url_for('ai.disease') }}" class="feat-card">
+      <div class="feat-icon">
+        <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h3>Disease detection</h3>
+      <p>Upload a photo of a leaf. Our image model identifies the disease and suggests treatment.</p>
+      <span class="feat-link">Upload photo →</span>
+    </a>
+
+    <a href="{{ url_for('dashboard.index') }}" class="feat-card">
+      <div class="feat-icon">
+        <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M3 9h18M9 21V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h3>Soil & weather dashboard</h3>
+      <p>Track readings over time. Spot pH trends, nutrient drift, and climate shifts on one screen.</p>
+      <span class="feat-link">View dashboard →</span>
+    </a>
+
+    <a href="{{ url_for('blog.index') }}" class="feat-card">
+      <div class="feat-icon">
+        <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+          <path d="M4 4h16M4 8h10M4 12h12M4 16h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h3>Research articles</h3>
+      <p>Agronomists and data scientists explain the science behind the predictions.</p>
+      <span class="feat-link">Read articles →</span>
+    </a>
+  </div>
+</section>
+
+<!-- ══ RECENT POSTS ═══════════════════════════════════════ -->
+{% if recent_posts %}
+<section class="recent-posts-section">
+  <header class="section-header">
+    <span class="eyebrow">From the blog</span>
+    <h2>Latest from the field</h2>
+  </header>
+
+  <div class="posts-grid">
+    {% for post in recent_posts %}
+    <a href="{{ url_for('blog.article', slug=post.slug) }}" class="post-card">
+      <span class="post-tag">{{ post.tag }}</span>
+      <h3>{{ post.title }}</h3>
+      <p>{{ post.summary[:120] }}{% if post.summary|length > 120 %}…{% endif %}</p>
+      <span class="post-date">{{ post.created_at.strftime("%B %d, %Y") }}</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  <div class="section-cta">
+    <a href="{{ url_for('blog.index') }}" class="btn btn--outline">All articles →</a>
+  </div>
+</section>
+{% endif %}
+
+<!-- ══ CTA STRIP ══════════════════════════════════════════ -->
+{% if not current_user.is_authenticated %}
+<section class="cta-strip">
+  <h2>Ready to grow smarter?</h2>
+  <p>Create a free account in under a minute.</p>
+  <a href="{{ url_for('auth.register') }}" class="btn btn--primary btn--lg">Create account →</a>
+</section>
+{% endif %}
+
+{% endblock %}

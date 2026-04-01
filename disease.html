@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Disease Detection — AgriSense{% endblock %}
+
+{% block content %}
+<section class="form-page">
+  <div class="form-hero">
+    <span class="eyebrow">AI image analysis</span>
+    <h1>Crop disease detection</h1>
+    <p>Upload a clear photo of an affected leaf. The model will identify the disease and suggest treatment.</p>
+  </div>
+
+  <div class="form-body">
+    <div class="form-card">
+      <form method="POST" action="{{ url_for('ai.disease') }}" enctype="multipart/form-data" class="agri-form">
+
+        <!-- Drag-and-drop upload zone -->
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="image" name="image" accept=".jpg,.jpeg,.png,.webp"
+                 class="upload-input" required>
+          <div class="upload-inner">
+            <svg width="40" height="40" fill="none" viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p class="upload-label">Click or drag a leaf photo here</p>
+            <p class="upload-hint">PNG, JPG or WEBP · Max 5 MB</p>
+          </div>
+          <div class="upload-preview" id="uploadPreview" style="display:none">
+            <img id="previewImg" src="" alt="Preview">
+            <span id="previewName"></span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--full btn--lg">Analyse leaf →</button>
+      </form>
+    </div>
+
+    {% if result %}
+    <div class="disease-result-card">
+      <div class="disease-result-grid">
+        <div class="disease-img-wrap">
+          <img src="{{ url_for('static', filename=result.image_path) }}" alt="Uploaded leaf">
+        </div>
+        <div class="disease-result-info">
+          <div class="result-eyebrow">Detection result</div>
+          <div class="result-crop-name {% if result.disease == 'Healthy' %}result-healthy{% endif %}">
+            {{ result.disease }}
+          </div>
+          <div class="conf-track" style="margin-top: 1rem">
+            <div class="conf-fill" style="width: {{ (result.confidence * 100) | round | int }}%"></div>
+          </div>
+          <div class="conf-label">
+            Confidence: <strong>{{ (result.confidence * 100) | round(1) }}%</strong>
+          </div>
+          <div class="treatment-box">
+            <h4>Recommended treatment</h4>
+            <p>{{ result.treatment }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Show image preview when user selects a file
+const input   = document.getElementById("image");
+const preview = document.getElementById("uploadPreview");
+const inner   = document.querySelector(".upload-inner");
+const img     = document.getElementById("previewImg");
+const name    = document.getElementById("previewName");
+
+input.addEventListener("change", function () {
+  const file = this.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  img.src       = url;
+  name.textContent = file.name;
+  inner.style.display   = "none";
+  preview.style.display = "flex";
+});
+</script>
+{% endblock %}

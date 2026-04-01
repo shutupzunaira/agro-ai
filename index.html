@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — AgriSense{% endblock %}
+
+{% block content %}
+<section class="dash-page">
+
+  <!-- ── Header ── -->
+  <header class="dash-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="dash-sub">Hello, {{ current_user.username }}. Here's your field data.</p>
+    </div>
+    <div class="dash-header-actions">
+      <a href="{{ url_for('ai.recommend') }}" class="btn btn--primary">New prediction</a>
+      <a href="{{ url_for('ai.disease') }}"   class="btn btn--outline">Disease check</a>
+    </div>
+  </header>
+
+  <div class="dash-grid">
+
+    <!-- ── Chart panel ── -->
+    <div class="panel panel--wide">
+      <div class="panel-header">
+        <h2>Soil metrics over time</h2>
+        <div class="chart-legend" id="chartLegend"></div>
+      </div>
+
+      {% if readings %}
+        <div class="chart-wrap">
+          <canvas id="soilChart"></canvas>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <p>No readings yet. Log your first soil measurement below.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Log new reading form ── -->
+    <div class="panel">
+      <div class="panel-header"><h2>Log a reading</h2></div>
+      <form method="POST" action="{{ url_for('dashboard.log_reading') }}" class="dash-form">
+        <div class="form-row-2">
+          <div class="field"><label>Nitrogen (N)</label><input type="number" name="nitrogen" step="0.1" min="0" placeholder="90" required></div>
+          <div class="field"><label>Phosphorus (P)</label><input type="number" name="phosphorus" step="0.1" min="0" placeholder="42" required></div>
+        </div>
+        <div class="form-row-2">
+          <div class="field"><label>Potassium (K)</label><input type="number" name="potassium" step="0.1" min="0" placeholder="43" required></div>
+          <div class="field"><label>Soil pH</label><input type="number" name="ph" step="0.01" min="0" max="14" placeholder="6.5" required></div>
+        </div>
+        <div class="form-row-2">
+          <div class="field"><label>Temperature (°C)</label><input type="number" name="temperature" step="0.1" placeholder="22" required></div>
+          <div class="field"><label>Humidity (%)</label><input type="number" name="humidity" step="0.1" min="0" max="100" placeholder="80" required></div>
+        </div>
+        <div class="field"><label>Rainfall (mm)</label><input type="number" name="rainfall" step="0.1" min="0" placeholder="200" required></div>
+        <button type="submit" class="btn btn--primary btn--full">Save reading</button>
+      </form>
+    </div>
+
+    <!-- ── Recent predictions ── -->
+    <div class="panel panel--wide">
+      <div class="panel-header"><h2>Prediction history</h2></div>
+      {% if readings %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Crop</th><th>Confidence</th>
+                <th>N</th><th>P</th><th>K</th><th>pH</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in readings %}
+              <tr>
+                <td>{{ r.recorded_at.strftime("%d %b %Y") }}</td>
+                <td>
+                  {% if r.recommended_crop %}
+                    <span class="crop-badge">{{ r.recommended_crop | title }}</span>
+                  {% else %}—{% endif %}
+                </td>
+                <td>
+                  {% if r.confidence %}
+                    <div class="mini-bar">
+                      <div class="mini-fill" style="width:{{ (r.confidence * 100) | int }}%"></div>
+                    </div>
+                    <span class="conf-text">{{ (r.confidence * 100) | round(0) | int }}%</span>
+                  {% else %}—{% endif %}
+                </td>
+                <td>{{ r.nitrogen }}</td>
+                <td>{{ r.phosphorus }}</td>
+                <td>{{ r.potassium }}</td>
+                <td>{{ r.ph }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="muted-text">No predictions yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- ── Disease history sidebar ── -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Disease checks</h2>
+        <a href="{{ url_for('ai.disease') }}" class="panel-link">New check →</a>
+      </div>
+      {% if disease_history %}
+        <ul class="disease-list">
+          {% for d in disease_history %}
+          <li class="disease-item">
+            <img src="{{ url_for('static', filename=d.image_path) }}" alt="leaf" class="disease-thumb">
+            <div class="disease-info">
+              <span class="disease-name">{{ d.disease_name }}</span>
+              <span class="disease-conf">{{ (d.confidence * 100) | round(0) | int }}% confidence</span>
+              <span class="disease-date">{{ d.submitted_at.strftime("%d %b") }}</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted-text">No disease checks yet.</p>
+      {% endif %}
+    </div>
+
+  </div><!-- /dash-grid -->
+</section>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js from CDN — draws the soil metrics chart -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+// chart_json was injected by dashboard.index() route
+const data = {{ chart_json | safe }};
+
+if (data.labels.length > 0) {
+  const ctx = document.getElementById("soilChart").getContext("2d");
+
+  // Colour palette for each metric line
+  const palette = {
+    ph:          { color: "#c9a84c", label: "pH" },
+    nitrogen:    { color: "#4a8c3f", label: "Nitrogen" },
+    phosphorus:  { color: "#6fb85f", label: "Phosphorus" },
+    potassium:   { color: "#e07b54", label: "Potassium" },
+    temperature: { color: "#d4a04a", label: "Temp °C" },
+    humidity:    { color: "#7ab8c7", label: "Humidity %" },
+  };
+
+  const datasets = Object.entries(palette).map(([key, cfg]) => ({
+    label:           cfg.label,
+    data:            data[key],
+    borderColor:     cfg.color,
+    backgroundColor: cfg.color + "18",
+    borderWidth:     2,
+    pointRadius:     3,
+    tension:         0.35,
+    fill:            false,
+  }));
+
+  new Chart(ctx, {
+    type: "line",
+    data: { labels: data.labels, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "top",
+          labels: {
+            color: "#c8bc9d",
+            font: { family: "'Jost', sans-serif", size: 12 },
+            boxWidth: 12,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: "#8a7e65" },
+          grid:  { color: "rgba(255,255,255,0.04)" },
+        },
+        y: {
+          ticks: { color: "#8a7e65" },
+          grid:  { color: "rgba(255,255,255,0.04)" },
+        },
+      },
+    },
+  });
+}
+</script>
+{% endblock %}
