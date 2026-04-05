@@ -94,4 +94,5 @@ if __name__ == "__main__":
     app = create_app()
     # host="0.0.0.0" makes the server reachable on your local network,
     # not just from localhost. Other devices can visit http://<your-ip>:5000
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)
+    
