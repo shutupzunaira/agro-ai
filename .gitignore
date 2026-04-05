@@ -1,0 +1,17 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Dataset (DO NOT TRACK)
+dataset/
+PlantVillage/
+
+# Model + training artifacts
+*.h5
+*.zip
+
+# Uploads (runtime only)
+static/uploads/
+
+# OS junk
+.DS_Store

@@ -1,125 +1,106 @@
 """
-routes/ai_routes.py — AI feature routes.
+routes/ai_routes.py — AI feature routes (FINAL UPGRADED VERSION)
 
-Two features:
-  1. /ai/recommend  — Crop recommendation (soil + climate inputs → model → crop name)
-  2. /ai/disease    — Disease detection   (upload leaf image → model → disease name)
+This includes:
+1. Crop recommendation
+2. Weed detection (CNN)
+3. Smart decision layer for Agro-AI system
 """
 
 import os
-import json
-import uuid
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
-from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
-from extensions import db
-from models import SoilReading, DiseaseReport
+from flask import Blueprint, render_template, request
+
 from ai.predictor import predict_crop
-from ai.disease_detector import detect_disease
+from ai.model import predict_weed_or_crop
 
 ai_bp = Blueprint("ai", __name__)
 
-# File types we accept for image uploads
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+UPLOAD_FOLDER = "static/uploads"
 
 
-def allowed_file(filename: str) -> bool:
-    """Return True if the uploaded file has an acceptable extension."""
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  CROP RECOMMENDATION
-# ─────────────────────────────────────────────────────────────────────────────
-@ai_bp.route("/recommend", methods=["GET", "POST"])
-@login_required
+# =========================
+# 🌾 Crop Recommendation
+# =========================
+@ai_bp.route("/recommend", methods=["POST"])
 def recommend():
-    result = None
+    try:
+        inputs = {
+            "N": float(request.form.get("N")),
+            "P": float(request.form.get("P")),
+            "K": float(request.form.get("K")),
+            "temperature": float(request.form.get("temperature")),
+            "humidity": float(request.form.get("humidity")),
+            "ph": float(request.form.get("ph")),
+            "rainfall": float(request.form.get("rainfall")),
+        }
 
-    if request.method == "POST":
-        try:
-            inputs = {
-                "N":           float(request.form["nitrogen"]),
-                "P":           float(request.form["phosphorus"]),
-                "K":           float(request.form["potassium"]),
-                "temperature": float(request.form["temperature"]),
-                "humidity":    float(request.form["humidity"]),
-                "ph":          float(request.form["ph"]),
-                "rainfall":    float(request.form["rainfall"]),
-            }
+        crop, confidence = predict_crop(inputs)
 
-            crop, confidence = predict_crop(inputs)
+        return render_template(
+            "home.html",
+            crop_result=f"{crop} ({confidence:.2f})"
+        )
 
-            # Save to the database so it appears in the dashboard history
-            reading = SoilReading(
-                user_id          = current_user.id,
-                nitrogen         = inputs["N"],
-                phosphorus       = inputs["P"],
-                potassium        = inputs["K"],
-                ph               = inputs["ph"],
-                temperature      = inputs["temperature"],
-                humidity         = inputs["humidity"],
-                rainfall         = inputs["rainfall"],
-                recommended_crop = crop,
-                confidence       = confidence,
-            )
-            db.session.add(reading)
-            db.session.commit()
-
-            result = {"crop": crop, "confidence": confidence}
-
-        except (ValueError, KeyError) as e:
-            flash(f"Please fill in all fields correctly. ({e})", "error")
-
-    return render_template("ai/recommend.html", result=result)
+    except Exception as e:
+        print("❌ Crop recommendation error:", e)
+        return render_template("home.html", error="Something went wrong")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  DISEASE DETECTION
-# ─────────────────────────────────────────────────────────────────────────────
-@ai_bp.route("/disease", methods=["GET", "POST"])
-@login_required
-def disease():
-    result = None
-
-    if request.method == "POST":
-        # 1. Check a file was actually attached
-        if "image" not in request.files or request.files["image"].filename == "":
-            flash("Please select an image to upload.", "error")
-            return redirect(url_for("ai.disease"))
+# =========================
+# 🌱 Weed Detection + AI Decision Layer
+# =========================
+@ai_bp.route("/weed-detect", methods=["POST"])
+def weed_detect():
+    try:
+        # Check file
+        if "image" not in request.files:
+            return render_template("home.html", error="No image uploaded")
 
         file = request.files["image"]
 
-        if not allowed_file(file.filename):
-            flash("Only PNG, JPG, JPEG, or WEBP images are accepted.", "error")
-            return redirect(url_for("ai.disease"))
+        if file.filename == "":
+            return render_template("home.html", error="No file selected")
 
-        # 2. Save the file with a UUID name (prevents path-traversal attacks)
-        ext       = file.filename.rsplit(".", 1)[1].lower()
-        safe_name = f"{uuid.uuid4().hex}.{ext}"
-        save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], safe_name)
-        os.makedirs(current_app.config["UPLOAD_FOLDER"], exist_ok=True)
-        file.save(save_path)
+        # Ensure upload folder exists
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-        # 3. Run the AI model
-        disease_name, confidence, treatment = detect_disease(save_path)
+        # Save file safely
+        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(filepath)
 
-        # 4. Save the report
-        report = DiseaseReport(
-            user_id      = current_user.id,
-            image_path   = f"uploads/{safe_name}",
-            disease_name = disease_name,
-            confidence   = confidence,
-            treatment    = treatment,
+        # =========================
+        # 🧠 AI MODEL PREDICTION
+        # =========================
+        result = predict_weed_or_crop(filepath)
+
+        label = result.get("label", "Unknown")
+        confidence = result.get("confidence", 0.0)
+        suggestion = result.get("suggestion", "No suggestion available")
+
+        # =========================
+        # 🌿 SMART DECISION LAYER
+        # =========================
+        if label.lower() == "weed" and confidence >= 0.85:
+            action = "🚨 High weed density → Targeted removal recommended"
+        elif label.lower() == "weed":
+            action = "⚠️ Weed detected → Monitor field or selective removal"
+        elif label.lower() == "crop":
+            action = "✅ Healthy crop → No action needed"
+        else:
+            action = "🌿 Uncertain → Retake clearer image"
+
+        # =========================
+        # 📤 SEND TO FRONTEND
+        # =========================
+        return render_template(
+            "home.html",
+            prediction=label,
+            confidence=f"{confidence * 100:.2f}%",
+            suggestion=suggestion,
+            action=action,
+            image_path=filepath
         )
-        db.session.add(report)
-        db.session.commit()
 
-        result = {
-            "disease":    disease_name,
-            "confidence": confidence,
-            "treatment":  treatment,
-            "image_path": f"uploads/{safe_name}",
-        }
-
-    return render_template("ai/disease.html", result=result)
+    except Exception as e:
+        print("❌ Weed detection error:", e)
+        return render_template("home.html", error="Something went wrong")
