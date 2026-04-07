@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} — AgriSense{% endblock %}
+
+{% block content %}
+<section class="article-page">
+
+  <article>
+    <header class="article-header">
+      <div class="article-meta">
+        <span class="post-tag">{{ post.tag or 'General' }}</span>
+        <span class="post-date">{{ post.created_at.strftime("%d %b %Y") }}</span>
+      </div>
+      <h1>{{ post.title }}</h1>
+      <p class="article-summary">{{ post.summary }}</p>
+    </header>
+
+    <div class="article-body">
+      {{ post.body | safe }}
+    </div>
+  </article>
+
+  {% if related %}
+    <aside class="related-posts">
+      <h3>Related articles</h3>
+      <div class="related-grid">
+        {% for r in related %}
+          <a href="{{ url_for('blog.article', slug=r.slug) }}" class="related-card">
+            <span class="post-tag">{{ r.tag }}</span>
+            <h4>{{ r.title }}</h4>
+            <span class="post-date">{{ r.created_at.strftime("%d %b %Y") }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </aside>
+  {% endif %}
+
+  <div style="margin-top:2.5rem;">
+    <a href="{{ url_for('blog.index') }}" class="btn btn--outline">← Back to all articles</a>
+  </div>
+
+</section>
+{% endblock %}

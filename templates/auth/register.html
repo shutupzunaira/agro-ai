@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Sign up — AgriSense{% endblock %}
+
+{% block content %}
+<section class="auth-section auth-section--auth">
+  <div class="auth-card auth-card--elevated">
+    <header class="auth-header">
+      <p class="eyebrow eyebrow--auth">Get started free</p>
+      <h1>Create your account</h1>
+      <p>One account for crop recommendations, weed detection, and your field dashboard.</p>
+    </header>
+
+    <form class="auth-form" method="post" action="{{ url_for('auth.register') }}">
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" required placeholder="field_farmer">
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" autocomplete="email" required placeholder="you@farm.example">
+      </div>
+      <div class="field">
+        <label for="password">Password <span class="field-hint">(8+ characters)</span></label>
+        <input type="password" id="password" name="password" autocomplete="new-password" required minlength="8" placeholder="••••••••">
+      </div>
+      <div class="field">
+        <label for="confirm">Confirm password</label>
+        <input type="password" id="confirm" name="confirm" autocomplete="new-password" required placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn btn--primary btn--full btn--lg">Sign up</button>
+    </form>
+
+    <p class="auth-switch">
+      Already have an account?
+      <a href="{{ url_for('auth.login') }}">Log in</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

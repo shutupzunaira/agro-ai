@@ -1,66 +1,99 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
 import os
 
-DATASET_PATH = "dataset"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-IMG_SIZE = (224, 224)
+# ======================
+# DATASET PATH
+# ======================
+DATA_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "dataset")
+
+IMG_SIZE = (128, 128)
 BATCH_SIZE = 32
 
-# Load dataset
-train_ds = tf.keras.preprocessing.image_dataset_from_directory(
-    os.path.join(DATASET_PATH, "train"),
+# ======================
+# LOAD DATA
+# ======================
+train_ds = tf.keras.utils.image_dataset_from_directory(
+    os.path.join(DATA_DIR, "train"),
     image_size=IMG_SIZE,
-    batch_size=BATCH_SIZE
+    batch_size=BATCH_SIZE,
+    label_mode="binary"
 )
 
-val_ds = tf.keras.preprocessing.image_dataset_from_directory(
-    os.path.join(DATASET_PATH, "valid"),
+val_ds = tf.keras.utils.image_dataset_from_directory(
+    os.path.join(DATA_DIR, "valid"),
     image_size=IMG_SIZE,
-    batch_size=BATCH_SIZE
+    batch_size=BATCH_SIZE,
+    label_mode="binary"
 )
 
-class_names = train_ds.class_names
-print("Classes:", class_names)
-
-# Normalize
-normalization_layer = layers.Rescaling(1./255)
+# ======================
+# NORMALIZATION
+# ======================
+normalization_layer = tf.keras.layers.Rescaling(1./255)
 
 train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
-val_ds   = val_ds.map(lambda x, y: (normalization_layer(x), y))
+val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
 
-# Model
+# ======================
+# PREFETCH
+# ======================
+train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=tf.data.AUTOTUNE)
+val_ds = val_ds.prefetch(buffer_size=tf.data.AUTOTUNE)
+
+# ======================
+# CNN MODEL
+# ======================
 model = models.Sequential([
-    layers.Input(shape=(224, 224, 3)),
-
-    layers.Conv2D(32, 3, activation='relu'),
+    layers.Conv2D(32, (3,3), activation='relu', input_shape=(128,128,3)),
     layers.MaxPooling2D(),
 
-    layers.Conv2D(64, 3, activation='relu'),
+    layers.Conv2D(64, (3,3), activation='relu'),
     layers.MaxPooling2D(),
 
-    layers.Conv2D(128, 3, activation='relu'),
+    layers.Conv2D(128, (3,3), activation='relu'),
     layers.MaxPooling2D(),
 
     layers.Flatten(),
     layers.Dense(128, activation='relu'),
-    layers.Dense(len(class_names), activation='softmax')
+    layers.Dropout(0.5),
+    layers.Dense(1, activation='sigmoid')
 ])
 
+# ======================
+# COMPILE MODEL
+# ======================
 model.compile(
     optimizer='adam',
-    loss='sparse_categorical_crossentropy',
+    loss='binary_crossentropy',
     metrics=['accuracy']
 )
 
-# Train
-model.fit(
+# ======================
+# TRAIN MODEL
+# ======================
+history = model.fit(
     train_ds,
     validation_data=val_ds,
-    epochs=5
+    epochs=10
 )
 
-# Save model
-model.save("ai/weed_crop_model.h5")
+# ======================
+# SAVE MODEL
+# ======================
+out_path = os.path.join(SCRIPT_DIR, "weed_crop_model.h5")
+model.save(out_path)
 
-print("✅ Model trained and saved!")
+print(f"✅ Model saved as {out_path}")
+
+# ======================
+# PLOT ACCURACY
+# ======================
+plt.plot(history.history['accuracy'], label='train accuracy')
+plt.plot(history.history['val_accuracy'], label='val accuracy')
+plt.legend()
+plt.title("Model Accuracy")
+plt.show()

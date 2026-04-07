@@ -1,49 +1,102 @@
 import os
 import shutil
+import random
 
+# =========================
+# PATH CONFIG
+# =========================
+SOURCE_DIR = "/Users/shambhavisinha/Downloads/plant_seedlings_v2/nonsegmentedv2"
 BASE_DIR = "dataset"
 
-# class mapping from YOLO labels
-CLASS_NAMES = ["crop", "weed"]
+# =========================
+# CLASS MAPPING
+# =========================
+WEED_CLASSES = [
+    "Black-grass",
+    "Charlock",
+    "Cleavers",
+    "Common Chickweed",
+    "Fat Hen",
+    "Loose Silky-bent",
+    "Scentless Mayweed",
+    "Small-flowered Cranesbill"
+]
 
+CROP_CLASSES = [
+    "Maize",
+    "Common wheat",
+    "Sugar beet"
+]
+
+# =========================
+# CREATE FOLDERS
+# =========================
 def create_dirs():
     for split in ["train", "valid"]:
-        for cls in CLASS_NAMES:
+        for cls in ["weed", "crop"]:
             os.makedirs(f"{BASE_DIR}/{split}/{cls}", exist_ok=True)
 
-def process_split(split):
-    images_path = f"{BASE_DIR}/{split}/images"
-    labels_path = f"{BASE_DIR}/{split}/labels"
+# =========================
+# PROCESS EACH CLASS
+# =========================
+def process_class(class_name, label):
+    class_path = os.path.join(SOURCE_DIR, class_name)
 
-    for file in os.listdir(images_path):
-        if not file.endswith(".jpg"):
-            continue
+    if not os.path.exists(class_path):
+        print(f"⚠️ Skipping missing folder: {class_name}")
+        return
 
-        img_path = os.path.join(images_path, file)
-        label_file = file.replace(".jpg", ".txt")
-        label_path = os.path.join(labels_path, label_file)
+    images = [
+        f for f in os.listdir(class_path)
+        if f.lower().endswith((".png", ".jpg", ".jpeg"))
+    ]
 
-        if not os.path.exists(label_path):
-            continue
+    if len(images) == 0:
+        print(f"⚠️ No images found in: {class_name}")
+        return
 
-        with open(label_path, "r") as f:
-            lines = f.readlines()
+    random.shuffle(images)
 
-        if len(lines) == 0:
-            continue
+    split_idx = int(0.8 * len(images))
 
-        # take first object class
-        class_id = int(lines[0].split()[0])
-        class_name = CLASS_NAMES[class_id]
+    train_imgs = images[:split_idx]
+    val_imgs = images[split_idx:]
 
-        dest_path = f"{BASE_DIR}/{split}/{class_name}/{file}"
-        shutil.copy(img_path, dest_path)
+    # Copy train images
+    for img in train_imgs:
+        src = os.path.join(class_path, img)
+        dst = os.path.join(BASE_DIR, "train", label, img)
+        shutil.copy2(src, dst)
 
+    # Copy validation images
+    for img in val_imgs:
+        src = os.path.join(class_path, img)
+        dst = os.path.join(BASE_DIR, "valid", label, img)
+        shutil.copy2(src, dst)
+
+    print(f"✔ Processed {class_name} -> {label}")
+
+# =========================
+# MAIN FUNCTION
+# =========================
 def main():
-    create_dirs()
-    process_split("train")
-    process_split("valid")
-    print("✅ Dataset prepared for CNN!")
+    print("🚀 Starting dataset preparation...")
 
+    create_dirs()
+
+    # Process weed classes
+    for cls in WEED_CLASSES:
+        process_class(cls, "weed")
+
+    # Process crop classes
+    for cls in CROP_CLASSES:
+        process_class(cls, "crop")
+
+    print("\n✅ Dataset successfully prepared!")
+    print(f"📁 Output folder: {BASE_DIR}/")
+
+# =========================
+# RUN SCRIPT
+# =========================
 if __name__ == "__main__":
     main()

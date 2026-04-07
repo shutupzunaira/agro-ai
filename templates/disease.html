@@ -1,86 +1,571 @@
 {% extends "base.html" %}
 {% block title %}Disease Detection — AgriSense{% endblock %}
 
+{% block head %}
+<style>
+/* ── Disease Page Layout ─────────────────────────────── */
+.disease-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3.5rem 2rem 6rem;
+}
+.disease-hero { margin-bottom: 2.5rem; }
+.disease-hero h1 {
+  font-family: var(--display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin-bottom: .5rem;
+}
+.disease-hero p { color: var(--mist); max-width: 52ch; }
+
+/* ── Upload / Camera Card ────────────────────────────── */
+.capture-card {
+  background: var(--earth);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+.capture-tabs {
+  display: flex; gap: .5rem; margin-bottom: 1.5rem;
+}
+.tab-btn {
+  flex: 1; padding: .65rem; border-radius: var(--radius-md);
+  border: 1px solid var(--line); background: var(--earth2);
+  color: var(--mist); font-family: var(--body); font-size: .88rem;
+  cursor: pointer; transition: var(--trans);
+}
+.tab-btn.active, .tab-btn:hover {
+  background: var(--moss); border-color: var(--moss); color: #fff;
+}
+
+/* Upload panel */
+#upload-panel, #camera-panel { display: none; }
+#upload-panel.visible, #camera-panel.visible { display: block; }
+
+.dz {
+  border: 2px dashed var(--line);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.dz:hover, .dz.dragging { border-color: var(--leaf); background: rgba(94,168,79,.04); }
+.dz input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.dz-icon { color: var(--leaf); margin-bottom: .75rem; }
+.dz-label { font-size: .95rem; color: var(--parchment); }
+.dz-hint  { font-size: .78rem; color: var(--mist); margin-top: .3rem; }
+.dz-preview {
+  display: flex; align-items: center; gap: 1rem;
+  pointer-events: none;
+}
+.dz-preview img { width: 80px; height: 80px; object-fit: cover; border-radius: var(--radius-sm); }
+.dz-preview span { font-size: .85rem; color: var(--mist); }
+
+/* Camera panel */
+.cam-wrap {
+  border-radius: var(--radius-lg); overflow: hidden;
+  background: #000; position: relative;
+  max-height: 380px;
+}
+#cam-video {
+  width: 100%; display: block;
+  max-height: 380px; object-fit: cover;
+}
+#cam-canvas { display: none; }
+.cam-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.5);
+}
+.cam-overlay p { color: #fff; font-size: .9rem; text-align: center; padding: 1rem; }
+.cam-bar {
+  display: flex; gap: .75rem; margin-top: 1rem; flex-wrap: wrap;
+}
+.snap-ring {
+  width: 54px; height: 54px; border-radius: 50%;
+  background: #fff; border: 4px solid var(--moss);
+  cursor: pointer; transition: transform .15s;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.snap-ring:hover { transform: scale(1.08); }
+.snap-ring svg { color: var(--moss); }
+
+/* Captured preview */
+.captured-preview {
+  display: none;
+  border-radius: var(--radius-lg); overflow: hidden; position: relative;
+}
+.captured-preview img { width: 100%; max-height: 380px; object-fit: cover; display: block; }
+.cap-retake {
+  position: absolute; top: .75rem; right: .75rem;
+  background: rgba(14,20,9,.7);
+  border: 1px solid var(--line);
+  color: var(--parchment); padding: .4rem .9rem;
+  border-radius: 999px; font-size: .8rem; cursor: pointer;
+}
+
+/* Submit button */
+.analyse-btn {
+  margin-top: 1.25rem; width: 100%;
+}
+
+/* Error alert */
+.error-alert {
+  background: rgba(200,60,60,.1);
+  border: 1px solid rgba(200,80,80,.3);
+  border-radius: var(--radius-md); padding: .9rem 1.2rem;
+  color: #f09090; font-size: .9rem; margin-bottom: 1.5rem;
+}
+
+/* ── Result Cards ─────────────────────────────────────── */
+.result-wrap { display: flex; flex-direction: column; gap: 1.4rem; margin-top: .5rem; }
+
+/* Top card: image + headline */
+.result-hero-card {
+  background: var(--earth);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0;
+}
+.result-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.result-main-info { padding: 2rem; }
+.result-eyebrow-label {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .14em;
+  color: var(--mist); margin-bottom: .4rem;
+}
+.result-disease-name {
+  font-family: var(--display);
+  font-size: 2.2rem; line-height: 1.1;
+  margin-bottom: 1rem;
+}
+.result-disease-name.healthy { color: var(--leaf-lt); }
+.result-disease-name.severe  { color: #e07070; }
+.result-disease-name.moderate { color: var(--gold); }
+
+.sev-bar-wrap { margin-bottom: 1.2rem; }
+.sev-bar-label { font-size: .78rem; color: var(--mist); margin-bottom: .3rem; display: flex; justify-content: space-between; }
+.sev-bar { height: 8px; background: var(--earth3); border-radius: 999px; overflow: hidden; }
+.sev-fill {
+  height: 100%; border-radius: 999px;
+  transition: width 1s ease;
+}
+.sev-fill.low      { background: linear-gradient(90deg, var(--moss), var(--leaf-lt)); }
+.sev-fill.moderate { background: linear-gradient(90deg, var(--gold), #e0a030); }
+.sev-fill.high     { background: linear-gradient(90deg, #e07b54, #c04040); }
+
+.conf-row { font-size: .85rem; color: var(--mist); }
+.conf-row strong { color: var(--parchment); }
+
+/* Crop life card */
+.info-card {
+  background: var(--earth);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.8rem;
+}
+.info-card-title {
+  font-family: var(--display); font-size: 1.1rem;
+  color: var(--gold); margin-bottom: .75rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.info-card p { color: var(--mist); font-size: .92rem; line-height: 1.7; }
+
+/* Grid of info cards */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* List inside a card */
+.info-list {
+  list-style: none; display: flex; flex-direction: column; gap: .55rem;
+}
+.info-list li {
+  font-size: .88rem; color: var(--mist);
+  padding-left: 1.1rem; position: relative;
+}
+.info-list li::before {
+  content: '›';
+  position: absolute; left: 0;
+  color: var(--leaf);
+}
+
+/* Treatment card accent */
+.treatment-card {
+  background: linear-gradient(135deg, rgba(28,39,21,.8) 0%, var(--earth2) 100%);
+  border-color: rgba(93,140,80,.3);
+}
+
+/* Situations badge list */
+.situation-badges {
+  display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem;
+}
+.sit-badge {
+  background: rgba(201,168,76,.08);
+  border: 1px solid rgba(201,168,76,.2);
+  color: var(--gold-lt);
+  font-size: .8rem; padding: .3rem .75rem;
+  border-radius: 999px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .result-hero-card { grid-template-columns: 1fr; }
+  .result-img { max-height: 220px; }
+  .info-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<section class="form-page">
-  <div class="form-hero">
-    <span class="eyebrow">AI image analysis</span>
+<section class="disease-page">
+
+  <div class="disease-hero">
+    <span class="eyebrow">AI leaf analysis</span>
     <h1>Crop disease detection</h1>
-    <p>Upload a clear photo of an affected leaf. The model will identify the disease and suggest treatment.</p>
+    <p>Upload a leaf photo or use your camera. Our AI will identify the disease,
+       assess crop life impact, and give you a complete action plan.</p>
   </div>
 
-  <div class="form-body">
-    <div class="form-card">
-      <form method="POST" action="{{ url_for('ai.disease') }}" enctype="multipart/form-data" class="agri-form">
+  {% if error %}
+    <div class="error-alert">⚠ {{ error }}</div>
+  {% endif %}
 
-        <!-- Drag-and-drop upload zone -->
-        <div class="upload-zone" id="uploadZone">
-          <input type="file" id="image" name="image" accept=".jpg,.jpeg,.png,.webp"
-                 class="upload-input" required>
-          <div class="upload-inner">
-            <svg width="40" height="40" fill="none" viewBox="0 0 24 24">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
-                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p class="upload-label">Click or drag a leaf photo here</p>
-            <p class="upload-hint">PNG, JPG or WEBP · Max 5 MB</p>
-          </div>
-          <div class="upload-preview" id="uploadPreview" style="display:none">
-            <img id="previewImg" src="" alt="Preview">
-            <span id="previewName"></span>
-          </div>
-        </div>
-
-        <button type="submit" class="btn btn--primary btn--full btn--lg">Analyse leaf →</button>
-      </form>
+  <!-- ── Capture card ──────────────────────────────────── -->
+  <div class="capture-card">
+    <div class="capture-tabs">
+      <button class="tab-btn active" id="tab-upload" onclick="switchTab('upload')">📁 Upload photo</button>
+      <button class="tab-btn" id="tab-camera" onclick="switchTab('camera')">📷 Use camera</button>
     </div>
 
-    {% if result %}
-    <div class="disease-result-card">
-      <div class="disease-result-grid">
-        <div class="disease-img-wrap">
-          <img src="{{ url_for('static', filename=result.image_path) }}" alt="Uploaded leaf">
-        </div>
-        <div class="disease-result-info">
-          <div class="result-eyebrow">Detection result</div>
-          <div class="result-crop-name {% if result.disease == 'Healthy' %}result-healthy{% endif %}">
-            {{ result.disease }}
+    <form method="POST" action="{{ url_for('ai.disease') }}"
+          enctype="multipart/form-data" id="disease-form">
+
+      <!-- Upload panel -->
+      <div id="upload-panel" class="visible">
+        <div class="dz" id="drop-zone">
+          <input type="file" name="image" id="file-input"
+                 accept=".jpg,.jpeg,.png,.webp" required>
+          <div id="dz-inner">
+            <div class="dz-icon">
+              <svg width="44" height="44" fill="none" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                      stroke="currentColor" stroke-width="1.5"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <p class="dz-label">Click or drag a leaf photo here</p>
+            <p class="dz-hint">JPG, PNG or WEBP · Max 5 MB</p>
           </div>
-          <div class="conf-track" style="margin-top: 1rem">
-            <div class="conf-fill" style="width: {{ (result.confidence * 100) | round | int }}%"></div>
-          </div>
-          <div class="conf-label">
-            Confidence: <strong>{{ (result.confidence * 100) | round(1) }}%</strong>
-          </div>
-          <div class="treatment-box">
-            <h4>Recommended treatment</h4>
-            <p>{{ result.treatment }}</p>
+          <div id="dz-preview" class="dz-preview" style="display:none">
+            <img id="dz-prev-img" src="" alt="Preview">
+            <span id="dz-prev-name"></span>
           </div>
         </div>
       </div>
-    </div>
-    {% endif %}
+
+      <!-- Camera panel -->
+      <div id="camera-panel">
+        <!-- Live camera -->
+        <div class="cam-wrap" id="cam-wrap">
+          <video id="cam-video" playsinline autoplay muted></video>
+          <canvas id="cam-canvas"></canvas>
+          <div class="cam-overlay" id="cam-overlay">
+            <p>Click "Start camera" to begin</p>
+          </div>
+        </div>
+
+        <!-- Captured preview -->
+        <div class="captured-preview" id="captured-preview">
+          <img id="captured-img" src="" alt="Captured leaf">
+          <button type="button" class="cap-retake" id="retake-btn">↩ Retake</button>
+        </div>
+
+        <!-- Hidden input carries the captured image blob -->
+        <input type="file" name="image" id="cam-file-input"
+               accept="image/*" style="display:none">
+
+        <div class="cam-bar">
+          <button type="button" class="btn btn--outline" id="cam-start-btn">Start camera</button>
+          <div class="snap-ring" id="snap-btn" title="Capture photo" style="display:none">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+              <circle cx="12" cy="12" r="5" fill="currentColor"/>
+            </svg>
+          </div>
+          <button type="button" class="btn btn--ghost" id="cam-stop-btn" style="display:none">Stop</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn--primary btn--lg analyse-btn" id="analyse-btn">
+        Analyse leaf →
+      </button>
+    </form>
   </div>
+
+  <!-- ── Result cards ─────────────────────────────────── -->
+  {% if result %}
+  <div class="result-wrap">
+
+    <!-- Hero: image + disease name + severity + confidence -->
+    <div class="result-hero-card">
+      <img class="result-img"
+           src="{{ url_for('static', filename=result.image_path) }}"
+           alt="Analysed leaf">
+      <div class="result-main-info">
+        <div class="result-eyebrow-label">Detection result</div>
+        <div class="result-disease-name
+          {% if result.disease == 'Healthy' %}healthy
+          {% elif result.severity_pct >= 70 %}severe
+          {% else %}moderate{% endif %}">
+          {{ result.disease }}
+        </div>
+
+        <div class="sev-bar-wrap">
+          <div class="sev-bar-label">
+            <span>Severity</span>
+            <span>{{ result.severity }}</span>
+          </div>
+          <div class="sev-bar">
+            <div class="sev-fill
+              {% if result.severity_pct < 40 %}low
+              {% elif result.severity_pct < 70 %}moderate
+              {% else %}high{% endif %}"
+              style="width: {{ result.severity_pct }}%;">
+            </div>
+          </div>
+        </div>
+
+        <div class="conf-row">
+          AI confidence: <strong>{{ (result.confidence * 100) | round(1) }}%</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Crop life impact -->
+    <div class="info-card">
+      <div class="info-card-title">
+        🌱 Crop life impact
+      </div>
+      <p>{{ result.crop_life }}</p>
+    </div>
+
+    <!-- Treatment -->
+    <div class="info-card treatment-card">
+      <div class="info-card-title">
+        💊 Recommended treatment
+      </div>
+      <p>{{ result.treatment }}</p>
+    </div>
+
+    <!-- Causes + Prevention (side by side) -->
+    <div class="info-grid">
+
+      <div class="info-card">
+        <div class="info-card-title">🔍 Possible causes</div>
+        <ul class="info-list">
+          {% for cause in result.causes %}
+            <li>{{ cause }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="info-card">
+        <div class="info-card-title">🛡 Prevention steps</div>
+        <ul class="info-list">
+          {% for step in result.prevention %}
+            <li>{{ step }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Possible situations / outlook -->
+    <div class="info-card">
+      <div class="info-card-title">⚠ Possible situations &amp; outlook</div>
+      <div class="situation-badges">
+        {% for sit in result.situations %}
+          <span class="sit-badge">{{ sit }}</span>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+  {% endif %}
+
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Show image preview when user selects a file
-const input   = document.getElementById("image");
-const preview = document.getElementById("uploadPreview");
-const inner   = document.querySelector(".upload-inner");
-const img     = document.getElementById("previewImg");
-const name    = document.getElementById("previewName");
+(function () {
+  /* ── Tab switching ─────────────────────────────────── */
+  function switchTab(tab) {
+    document.getElementById('upload-panel').classList.toggle('visible', tab === 'upload');
+    document.getElementById('camera-panel').classList.toggle('visible', tab === 'camera');
+    document.getElementById('tab-upload').classList.toggle('active', tab === 'upload');
+    document.getElementById('tab-camera').classList.toggle('active', tab === 'camera');
 
-input.addEventListener("change", function () {
-  const file = this.files[0];
-  if (!file) return;
-  const url = URL.createObjectURL(file);
-  img.src       = url;
-  name.textContent = file.name;
-  inner.style.display   = "none";
-  preview.style.display = "flex";
-});
+    // Make the right <input name="image"> required
+    var fileInput    = document.getElementById('file-input');
+    var camFileInput = document.getElementById('cam-file-input');
+    if (tab === 'upload') {
+      fileInput.required    = true;
+      camFileInput.required = false;
+    } else {
+      fileInput.required    = false;
+      camFileInput.required = false; // camera flow uses JS blob
+    }
+
+    if (tab !== 'camera') stopCamera();
+  }
+  window.switchTab = switchTab; // expose for onclick=""
+
+  /* ── Upload drag-and-drop preview ─────────────────── */
+  var fileInput = document.getElementById('file-input');
+  var dzInner   = document.getElementById('dz-inner');
+  var dzPreview = document.getElementById('dz-preview');
+  var dzImg     = document.getElementById('dz-prev-img');
+  var dzName    = document.getElementById('dz-prev-name');
+  var dropZone  = document.getElementById('drop-zone');
+
+  function showPreview(file) {
+    dzImg.src         = URL.createObjectURL(file);
+    dzName.textContent = file.name;
+    dzInner.style.display   = 'none';
+    dzPreview.style.display = 'flex';
+  }
+
+  fileInput.addEventListener('change', function () {
+    if (this.files[0]) showPreview(this.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', function (e) {
+    e.preventDefault(); this.classList.add('dragging');
+  });
+  dropZone.addEventListener('dragleave', function () {
+    this.classList.remove('dragging');
+  });
+  dropZone.addEventListener('drop', function (e) {
+    e.preventDefault(); this.classList.remove('dragging');
+    var file = e.dataTransfer.files[0];
+    if (file) {
+      // Inject into input
+      var dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      showPreview(file);
+    }
+  });
+
+  /* ── Camera ────────────────────────────────────────── */
+  var camVideo       = document.getElementById('cam-video');
+  var camCanvas      = document.getElementById('cam-canvas');
+  var camOverlay     = document.getElementById('cam-overlay');
+  var camWrap        = document.getElementById('cam-wrap');
+  var capturedDiv    = document.getElementById('captured-preview');
+  var capturedImg    = document.getElementById('captured-img');
+  var retakeBtn      = document.getElementById('retake-btn');
+  var camStartBtn    = document.getElementById('cam-start-btn');
+  var snapBtn        = document.getElementById('snap-btn');
+  var camStopBtn     = document.getElementById('cam-stop-btn');
+  var camFileInput   = document.getElementById('cam-file-input');
+
+  var stream = null;
+
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      stream = null;
+    }
+    camVideo.srcObject = null;
+    camOverlay.style.display = 'flex';
+    snapBtn.style.display    = 'none';
+    camStopBtn.style.display = 'none';
+    camStartBtn.style.display = '';
+  }
+
+  camStartBtn.addEventListener('click', function () {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      camOverlay.querySelector('p').textContent =
+        'Camera not supported in this browser. Use the Upload tab instead.';
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }, audio: false
+    }).then(function (s) {
+      stream = s;
+      camVideo.srcObject = s;
+      camOverlay.style.display  = 'none';
+      snapBtn.style.display     = 'flex';
+      camStopBtn.style.display  = '';
+      camStartBtn.style.display = 'none';
+      camWrap.style.display     = '';
+      capturedDiv.style.display = 'none';
+    }).catch(function (err) {
+      camOverlay.querySelector('p').textContent =
+        'Could not open camera: ' + (err.message || 'permission denied.');
+    });
+  });
+
+  camStopBtn.addEventListener('click', stopCamera);
+
+  snapBtn.addEventListener('click', function () {
+    if (!stream || !camVideo.videoWidth) return;
+    camCanvas.width  = camVideo.videoWidth;
+    camCanvas.height = camVideo.videoHeight;
+    camCanvas.getContext('2d').drawImage(camVideo, 0, 0);
+    camCanvas.toBlob(function (blob) {
+      if (!blob) return;
+      var file = new File([blob], 'cam-capture.jpg', { type: 'image/jpeg' });
+      var dt   = new DataTransfer();
+      dt.items.add(file);
+      // Swap: camera file input carries the blob; upload file input is cleared
+      camFileInput.files = dt.files;
+      // Show captured image, hide live feed
+      capturedImg.src           = URL.createObjectURL(blob);
+      camWrap.style.display     = 'none';
+      capturedDiv.style.display = 'block';
+      snapBtn.style.display     = 'none';
+      camStopBtn.style.display  = 'none';
+      camStartBtn.style.display = '';
+      stopCamera();
+
+      // Rename the form input so the server receives it
+      camFileInput.name = 'image';
+      // Deactivate the upload input so it won't conflict
+      document.getElementById('file-input').name = '_file_unused';
+    }, 'image/jpeg', 0.9);
+  });
+
+  retakeBtn.addEventListener('click', function () {
+    capturedDiv.style.display = 'none';
+    camWrap.style.display     = '';
+    camFileInput.name         = '_cam_unused';
+    document.getElementById('file-input').name = 'image';
+    // Restart camera automatically
+    camStartBtn.click();
+  });
+
+  /* ── Analyse button feedback ───────────────────────── */
+  document.getElementById('disease-form').addEventListener('submit', function () {
+    var btn = document.getElementById('analyse-btn');
+    btn.textContent = 'Analysing… please wait';
+    btn.disabled    = true;
+  });
+
+  /* Default tab */
+  switchTab('upload');
+})();
 </script>
 {% endblock %}

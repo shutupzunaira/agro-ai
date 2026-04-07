@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Articles — AgriSense{% endblock %}
+
+{% block content %}
+<section class="blog-page">
+
+  <div class="blog-hero">
+    <span class="eyebrow">Knowledge base</span>
+    <h1>Articles &amp; Insights</h1>
+    <p>Stay up to date with the latest in AI-powered agriculture, best practices, and field research.</p>
+  </div>
+
+  {% if posts %}
+    <div class="blog-grid">
+      {% for post in posts %}
+        <a href="{{ url_for('blog.article', slug=post.slug) }}" class="blog-card">
+          <div class="blog-card-top">
+            <span class="post-tag">{{ post.tag or 'General' }}</span>
+            <span class="post-date">{{ post.created_at.strftime("%d %b %Y") }}</span>
+          </div>
+          <h2>{{ post.title }}</h2>
+          <p>{{ post.summary }}</p>
+          <span class="blog-read">Read article →</span>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>No articles published yet. Check back soon!</p>
+    </div>
+  {% endif %}
+
+</section>
+{% endblock %}

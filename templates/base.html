@@ -32,13 +32,11 @@
     {% if current_user.is_authenticated %}
       <a href="{{ url_for('dashboard.index') }}">Dashboard</a>
       <a href="{{ url_for('ai.recommend') }}">Predict</a>
-
-      <!-- ✅ FIXED -->
-      <a href="#" title="Coming soon">Disease Check (Coming Soon)</a>
-
-      <a href="{{ url_for('auth.logout') }}" class="nav-btn nav-btn--outline">Logout</a>
+      <a href="{{ url_for('ai.disease') }}">Disease check</a>
+      <a href="{{ url_for('auth.logout') }}" class="nav-btn nav-btn--outline">Log out</a>
     {% else %}
-      <a href="{{ url_for('auth.login') }}">Login</a>
+      <span class="nav-divider" aria-hidden="true"></span>
+      <a href="{{ url_for('auth.login') }}" class="nav-btn nav-btn--outline">Log in</a>
       <a href="{{ url_for('auth.register') }}" class="nav-btn nav-btn--filled">Get started</a>
     {% endif %}
   </div>
@@ -67,12 +65,15 @@
       <a href="{{ url_for('pages.home') }}">Home</a>
       <a href="{{ url_for('blog.index') }}">Articles</a>
       <a href="{{ url_for('ai.recommend') }}">Predict</a>
-
-      <!-- ✅ FIXED -->
-      <a href="#" title="Coming soon">Disease Check</a>
+      <a href="{{ url_for('ai.disease') }}">Disease check</a>
+      {% if not current_user.is_authenticated %}
+        <span class="footer-nav__sep" aria-hidden="true">·</span>
+        <a href="{{ url_for('auth.login') }}">Log in</a>
+        <a href="{{ url_for('auth.register') }}">Sign up</a>
+      {% endif %}
     </nav>
 
-    <p class="footer-copy">© 2025 AgriSense — AI for the field.</p>
+    <p class="footer-copy">© 2026 AgriSense — AI for the field.</p>
   </div>
 </footer>
 

@@ -4,8 +4,9 @@
 {% block content %}
 
 <!-- ══ HERO ══════════════════════════════════════════════ -->
-<section class="hero">
+<section class="hero hero--mesh">
   <div class="hero-bg-text" aria-hidden="true">GROW</div>
+  <div class="hero-glow" aria-hidden="true"></div>
 
   <div class="hero-inner">
     <div class="hero-copy">
@@ -13,137 +14,103 @@
       <h1>Know your field.<br><em>Feed the future.</em></h1>
       <p class="hero-sub">
         Enter soil and climate data. Our AI recommends the right crop,
-        flags disease early, and tracks your land over time.
+        spots weeds in photos, detects diseases, and helps you track your land.
       </p>
+
       <div class="hero-actions">
-        {% if current_user.is_authenticated %}
-          <a href="{{ url_for('dashboard.index') }}" class="btn btn--primary">Open dashboard</a>
-          <a href="{{ url_for('ai.recommend') }}" class="btn btn--ghost">Predict a crop →</a>
-        {% else %}
-          <a href="{{ url_for('auth.register') }}" class="btn btn--primary">Start for free</a>
-          <a href="{{ url_for('blog.index') }}" class="btn btn--ghost">Read the research →</a>
-        {% endif %}
+        <a href="{{ url_for('auth.register') }}" class="btn btn--primary btn--lg">Get started</a>
+        <a href="{{ url_for('auth.login') }}" class="btn btn--outline btn--lg">Log in</a>
       </div>
+      <p class="hero-footnote muted-text">Free to join. No credit card required.</p>
     </div>
 
-    <div class="hero-metrics">
-      <div class="metric-card">
-        <span class="metric-val">22</span>
-        <span class="metric-label">Crops supported</span>
+    <aside class="hero-visual" aria-hidden="true">
+      <div class="hero-visual__stack">
+        <div class="hero-stat hero-stat--one">
+          <span class="hero-stat__label">Crop match</span>
+          <span class="hero-stat__value">AI</span>
+          <span class="hero-stat__hint">Soil + climate + location</span>
+        </div>
+        <div class="hero-stat hero-stat--two">
+          <span class="hero-stat__label">Field vision</span>
+          <span class="hero-stat__value">CNN</span>
+          <span class="hero-stat__hint">Weed &amp; disease detection</span>
+        </div>
+        <div class="hero-stat hero-stat--three">
+          <span class="hero-stat__label">Your data</span>
+          <span class="hero-stat__value">1 place</span>
+          <span class="hero-stat__hint">Dashboard &amp; history</span>
+        </div>
       </div>
-      <div class="metric-card metric-card--accent">
-        <span class="metric-val">94%</span>
-        <span class="metric-label">Avg. model accuracy</span>
-      </div>
-      <div class="metric-card">
-        <span class="metric-val">7</span>
-        <span class="metric-label">Input parameters</span>
-      </div>
-      <div class="metric-card metric-card--accent">
-        <span class="metric-val">9</span>
-        <span class="metric-label">Diseases detected</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="field-lines" aria-hidden="true">
-    <div class="fl fl1"></div><div class="fl fl2"></div>
-    <div class="fl fl3"></div><div class="fl fl4"></div>
-    <div class="fl fl5"></div>
+    </aside>
   </div>
 </section>
 
 <!-- ══ FEATURES ══════════════════════════════════════════ -->
 <section class="features-section">
   <header class="section-header">
-    <span class="eyebrow">What we do</span>
-    <h2>Four tools, one platform</h2>
+    <h2>Smart tools, one platform</h2>
   </header>
 
   <div class="features-grid">
-    <a href="{{ url_for('ai.recommend') }}" class="feat-card">
-      <div class="feat-icon"></div>
-      <h3>Crop recommendation</h3>
-      <p>Input N, P, K, pH, temperature, humidity and rainfall — get the best-fit crop instantly.</p>
-      <span class="feat-link">Try it →</span>
+    <a href="{{ url_for('auth.register') }}" class="feat-card">
+      <h3>🌾 Crop recommendation</h3>
+      <p>Get the best crop based on your soil, weather, and location data.</p>
     </a>
-
-    <!-- ✅ FIXED (removed broken route) -->
-    <a href="#" class="feat-card">
-      <div class="feat-icon"></div>
-      <h3>Disease detection</h3>
-      <p>Coming soon...</p>
-      <span class="feat-link">Coming soon →</span>
+    <a href="{{ url_for('auth.register') }}" class="feat-card">
+      <h3>🌱 Weed detection</h3>
+      <p>Upload a field photo — AI tells you if it's crop or weed.</p>
     </a>
-
-    <a href="{{ url_for('dashboard.index') }}" class="feat-card">
-      <div class="feat-icon"></div>
-      <h3>Soil & weather dashboard</h3>
-      <p>Track readings over time. Spot pH trends, nutrient drift, and climate shifts on one screen.</p>
-      <span class="feat-link">View dashboard →</span>
+    <a href="{{ url_for('auth.register') }}" class="feat-card">
+      <h3>🍃 Disease detection</h3>
+      <p>Photograph a leaf and get disease diagnosis + treatment plan.</p>
     </a>
-
-    <a href="{{ url_for('blog.index') }}" class="feat-card">
-      <div class="feat-icon"></div>
-      <h3>Research articles</h3>
-      <p>Agronomists and data scientists explain the science behind the predictions.</p>
-      <span class="feat-link">Read articles →</span>
+    <a href="{{ url_for('auth.register') }}" class="feat-card">
+      <h3>📊 Dashboard</h3>
+      <p>Track soil, weather, and prediction history over time.</p>
+    </a>
+    <a href="{{ url_for('auth.register') }}" class="feat-card">
+      <h3>🌤 Weather-aware</h3>
+      <p>Auto-detect your location and fetch live weather for smarter predictions.</p>
     </a>
   </div>
 </section>
 
-<!-- ══ RECENT POSTS ═══════════════════════════════════════ -->
-{% if recent_posts %}
-<section class="recent-posts-section">
+<!-- ══ CTA ═══════════════════════════════════════════════ -->
+<section class="cta-strip cta-strip--accent" aria-labelledby="cta-heading">
+  <div class="cta-strip__inner">
+    <h2 id="cta-heading">Unlock the full toolkit</h2>
+    <p>Create a free account for the dashboard, crop prediction,
+       weed &amp; disease detection, and soil tracking.</p>
+    <div class="cta-strip__actions">
+      <a href="{{ url_for('auth.register') }}" class="btn btn--primary btn--lg">Get started</a>
+      <a href="{{ url_for('auth.login') }}" class="btn btn--outline btn--lg">Log in</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ARTICLES ══════════════════════════════════════════ -->
+{% if posts %}
+<section class="recent-posts-section" aria-labelledby="articles-heading">
   <header class="section-header">
-    <span class="eyebrow">From the blog</span>
-    <h2>Latest from the field</h2>
+    <h2 id="articles-heading">Latest insights</h2>
   </header>
 
   <div class="posts-grid">
-    {% for post in recent_posts %}
-    <a href="{{ url_for('blog.article', slug=post.slug) }}" class="post-card">
-      <span class="post-tag">{{ post.tag }}</span>
-      <h3>{{ post.title }}</h3>
-      <p>{{ post.summary[:120] }}{% if post.summary|length > 120 %}…{% endif %}</p>
-      <span class="post-date">{{ post.created_at.strftime("%B %d, %Y") }}</span>
-    </a>
+    {% for post in posts %}
+      <a href="{{ url_for('blog.article', slug=post.slug) }}" class="post-card">
+        <span class="post-tag">{{ post.tag or 'General' }}</span>
+        <h3>{{ post.title }}</h3>
+        <p>{{ post.summary }}</p>
+        <span class="post-date">{{ post.created_at.strftime("%d %b %Y") }}</span>
+      </a>
     {% endfor %}
+  </div>
+
+  <div class="section-cta">
+    <a href="{{ url_for('blog.index') }}" class="btn btn--outline">View all articles</a>
   </div>
 </section>
 {% endif %}
-
-<!-- ══ CTA STRIP ══════════════════════════════════════════ -->
-{% if not current_user.is_authenticated %}
-<section class="cta-strip">
-  <h2>Ready to grow smarter?</h2>
-  <p>Create a free account in under a minute.</p>
-  <a href="{{ url_for('auth.register') }}" class="btn btn--primary btn--lg">Create account →</a>
-</section>
-{% endif %}
-
-<!-- ══ WEED DETECTION ═══════════════════════════════════ -->
-<section class="weed-section">
-  <hr>
-  <h2>🌿 Weed Detection</h2>
-
-  <form action="/ai/weed-detect" method="POST" enctype="multipart/form-data">
-    <input type="file" name="image" required>
-    <button type="submit" onclick="this.innerText='Detecting...'">Detect Weed</button>
-  </form>
-
-  {% if image_path %}
-    <div style="margin-top: 15px;">
-      <img src="{{ image_path }}" width="200" style="border-radius: 10px;">
-    </div>
-  {% endif %}
-
-  {% if prediction %}
-    <div style="margin-top: 15px; padding: 15px; border-radius: 10px; background-color: #1e3a2f; color: white;">
-      <h3>{{ prediction }}</h3>
-      <p><strong>Suggestion:</strong> {{ suggestion }}</p>
-    </div>
-  {% endif %}
-</section>
 
 {% endblock %}

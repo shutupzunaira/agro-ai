@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — AgriSense{% endblock %}
+
+{% block head %}
+<style>
+/* ── Dashboard tabs ──────────────────────────────────── */
+.dash-tabs{display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.5rem;margin-bottom:2rem;border-bottom:1px solid var(--line);}
+.dash-tab{font-family:var(--body);font-size:.85rem;font-weight:500;padding:.55rem 1.1rem;border-radius:var(--radius-sm);border:1px solid transparent;background:none;color:var(--mist);cursor:pointer;white-space:nowrap;transition:var(--trans);}
+.dash-tab:hover{color:var(--parchment);background:var(--earth2);}
+.dash-tab.active{background:var(--moss);color:#fff;border-color:var(--moss);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+/* ── Weather card ────────────────────────────────────── */
+.weather-card{background:linear-gradient(135deg,var(--earth2),var(--earth));border:1px solid var(--line);border-radius:var(--radius-lg);padding:1.5rem 1.8rem;margin-bottom:1.5rem;}
+.weather-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;}
+.weather-header h3{font-family:var(--display);font-size:1.15rem;color:var(--parchment);}
+.weather-loc{font-size:.82rem;color:var(--gold);}
+.weather-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;}
+.weather-metric{text-align:center;}
+.weather-metric .wm-val{font-family:var(--display);font-size:1.8rem;color:var(--leaf-lt);line-height:1;}
+.weather-metric .wm-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--mist);margin-top:.3rem;}
+.weather-desc{text-align:center;margin-top:1rem;font-size:.9rem;color:var(--mist);}
+.weather-btn{margin-top:1rem;}
+.weather-status{font-size:.82rem;color:var(--mist);margin-top:.5rem;}
+
+/* ── Crop result ─────────────────────────────────────── */
+.crop-result-card{background:var(--earth2);border:1px solid rgba(93,168,79,.3);border-radius:var(--radius-lg);padding:1.5rem;margin-top:1rem;}
+.crop-result-name{font-family:var(--display);font-size:2.2rem;color:var(--leaf-lt);line-height:1;margin-bottom:.5rem;}
+
+/* ── Section panels ──────────────────────────────────── */
+.section-title{font-family:var(--display);font-size:1.6rem;margin-bottom:1.2rem;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;}
+@media(max-width:700px){.two-col{grid-template-columns:1fr;}}
+
+/* ── Weed / Disease upload ───────────────────────────── */
+.upload-card{background:var(--earth);border:1px solid var(--line);border-radius:var(--radius-lg);padding:1.5rem;}
+.upload-zone-sm{border:2px dashed var(--line);border-radius:var(--radius-md);padding:2rem 1rem;text-align:center;cursor:pointer;transition:border-color .2s;position:relative;}
+.upload-zone-sm:hover{border-color:var(--leaf);}
+.upload-zone-sm input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-zone-sm .uz-label{font-size:.88rem;color:var(--parchment);}
+.upload-zone-sm .uz-hint{font-size:.75rem;color:var(--mist);margin-top:.25rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="dash-page">
+
+  <!-- ── Header ── -->
+  <header class="dash-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="dash-sub">Welcome back, {{ current_user.username }}.</p>
+    </div>
+  </header>
+
+  <!-- ── Tabs ── -->
+  <nav class="dash-tabs" id="dashTabs">
+    <button class="dash-tab active" data-tab="overview">Overview</button>
+    <button class="dash-tab" data-tab="crop-rec">🌾 Crop Recommendation</button>
+    <button class="dash-tab" data-tab="weed-det">🌱 Weed Detection</button>
+    <button class="dash-tab" data-tab="disease-det">🍃 Disease Detection</button>
+    <button class="dash-tab" data-tab="soil-tracker">📊 Soil Tracker</button>
+    <button class="dash-tab" data-tab="articles">📰 Articles</button>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TAB: OVERVIEW                                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="tab-pane active" id="tab-overview">
+    <!-- Weather -->
+    <div class="weather-card" id="weather-card">
+      <div class="weather-header">
+        <h3>🌤 Current weather</h3>
+        <span class="weather-loc" id="weather-loc">—</span>
+      </div>
+      <div class="weather-grid" id="weather-grid" style="display:none;">
+        <div class="weather-metric"><span class="wm-val" id="w-temp">—</span><span class="wm-label">Temp °C</span></div>
+        <div class="weather-metric"><span class="wm-val" id="w-hum">—</span><span class="wm-label">Humidity %</span></div>
+        <div class="weather-metric"><span class="wm-val" id="w-rain">—</span><span class="wm-label">Rain mm</span></div>
+        <div class="weather-metric"><span class="wm-val" id="w-wind">—</span><span class="wm-label">Wind km/h</span></div>
+      </div>
+      <div class="weather-desc" id="weather-desc"></div>
+      <button class="btn btn--outline btn--full weather-btn" id="detect-loc-btn">📍 Detect my location & weather</button>
+      <p class="weather-status" id="weather-status"></p>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="two-col" style="margin-bottom:1.5rem;">
+      <div class="panel">
+        <div class="panel-header"><h2>📊 Soil readings logged</h2></div>
+        <p style="font-family:var(--display);font-size:2.5rem;color:var(--leaf-lt);line-height:1;">{{ readings|length }}</p>
+        <p class="muted-text" style="margin-top:.3rem;">Last 10 shown in Soil Tracker tab</p>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h2>🍃 Disease checks</h2></div>
+        {% if disease_history %}
+          <ul class="disease-list">
+            {% for d in disease_history[:3] %}
+            <li class="disease-item">
+              <img src="{{ url_for('static', filename=d.image_path) }}" alt="leaf" class="disease-thumb">
+              <div class="disease-info">
+                <span class="disease-name">{{ d.disease_name }}</span>
+                <span class="disease-conf">{{ (d.confidence * 100) | round(0) | int }}%</span>
+                <span class="disease-date">{{ d.submitted_at.strftime("%d %b") }}</span>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted-text">No disease checks yet.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recent predictions -->
+    {% if readings %}
+    <div class="panel">
+      <div class="panel-header"><h2>Recent predictions</h2></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Crop</th><th>Confidence</th><th>N</th><th>P</th><th>K</th><th>pH</th></tr></thead>
+          <tbody>
+            {% for r in readings[:5] %}
+            <tr>
+              <td>{{ r.recorded_at.strftime("%d %b %Y") }}</td>
+              <td>{% if r.recommended_crop %}<span class="crop-badge">{{ r.recommended_crop|title }}</span>{% else %}—{% endif %}</td>
+              <td>{% if r.confidence %}<div class="mini-bar"><div class="mini-fill" style="width:{{ (r.confidence*100)|int }}%"></div></div><span class="conf-text">{{ (r.confidence*100)|round(0)|int }}%</span>{% else %}—{% endif %}</td>
+              <td>{{ r.nitrogen }}</td><td>{{ r.phosphorus }}</td><td>{{ r.potassium }}</td><td>{{ r.ph }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TAB: CROP RECOMMENDATION                               -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="tab-pane" id="tab-crop-rec">
+    <h2 class="section-title">Crop recommendation</h2>
+    <p class="muted-text" style="margin-bottom:1.5rem;">
+      Detect your location to auto-fill weather data, enter soil values, and get the best crop for your field.
+    </p>
+
+    <!-- Weather auto-fill -->
+    <div class="weather-card" id="crop-weather-card">
+      <div class="weather-header">
+        <h3>🌤 Weather for your location</h3>
+        <span class="weather-loc" id="crop-weather-loc">Not detected</span>
+      </div>
+      <button class="btn btn--outline btn--full weather-btn" id="crop-detect-btn">📍 Detect location & auto-fill weather</button>
+      <p class="weather-status" id="crop-weather-status"></p>
+    </div>
+
+    <div class="panel">
+      <form method="POST" action="{{ url_for('dashboard.log_reading') }}" class="dash-form" id="crop-form">
+        <p style="font-size:.82rem;color:var(--gold);margin-bottom:.5rem;">SOIL VALUES</p>
+        <div class="form-row-2">
+          <div class="field"><label>Nitrogen (N)</label><input type="number" name="nitrogen" step="0.1" min="0" placeholder="90" required></div>
+          <div class="field"><label>Phosphorus (P)</label><input type="number" name="phosphorus" step="0.1" min="0" placeholder="42" required></div>
+        </div>
+        <div class="form-row-2">
+          <div class="field"><label>Potassium (K)</label><input type="number" name="potassium" step="0.1" min="0" placeholder="43" required></div>
+          <div class="field"><label>Soil pH</label><input type="number" name="ph" step="0.01" min="0" max="14" placeholder="6.5" required></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--gold);margin:.8rem 0 .5rem;">CLIMATE VALUES <span class="muted-text">(auto-filled from weather if detected)</span></p>
+        <div class="form-row-2">
+          <div class="field"><label>Temperature (°C)</label><input type="number" name="temperature" id="cr-temp" step="0.1" placeholder="22" required></div>
+          <div class="field"><label>Humidity (%)</label><input type="number" name="humidity" id="cr-hum" step="0.1" min="0" max="100" placeholder="80" required></div>
+        </div>
+        <div class="field"><label>Rainfall (mm)</label><input type="number" name="rainfall" id="cr-rain" step="0.1" min="0" placeholder="200" required></div>
+        <button type="submit" class="btn btn--primary btn--full btn--lg">Get crop recommendation →</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TAB: WEED DETECTION                                    -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="tab-pane" id="tab-weed-det">
+    <h2 class="section-title">Weed detection</h2>
+    <p class="muted-text" style="margin-bottom:1.5rem;">
+      Upload a field photo or use your camera. AI classifies it as crop or weed.
+    </p>
+
+    <div class="upload-card">
+      <form method="POST" action="{{ url_for('ai.weed_detect') }}" enctype="multipart/form-data" id="weed-form">
+        <div class="upload-zone-sm" id="weed-drop">
+          <input type="file" name="image" id="weed-file" accept="image/*" required>
+          <div id="weed-inner">
+            <p class="uz-label">📷 Click or drag a field photo here</p>
+            <p class="uz-hint">JPG, PNG or WEBP · Max 5 MB</p>
+          </div>
+          <div id="weed-preview" style="display:none;">
+            <img id="weed-prev-img" src="" alt="Preview" style="max-height:120px;border-radius:8px;margin:0 auto;">
+          </div>
+        </div>
+        <button type="submit" class="btn btn--primary btn--full" style="margin-top:1rem;" id="weed-submit">Analyze image →</button>
+      </form>
+
+      {% if prediction %}
+      <div class="crop-result-card" style="margin-top:1.5rem;">
+        <div class="result-eyebrow">Weed detection result</div>
+        <div class="crop-result-name" style="{% if prediction == 'weed' %}color:#e07b54{% endif %}">{{ prediction | title }}</div>
+        <p><strong>Confidence:</strong> {{ confidence }}</p>
+        {% if suggestion %}<p><strong>Suggestion:</strong> {{ suggestion }}</p>{% endif %}
+        {% if action %}<p><strong>Action:</strong> {{ action }}</p>{% endif %}
+      </div>
+      {% endif %}
+
+      {% if weed_error %}
+      <div style="margin-top:1rem;padding:.8rem 1rem;background:rgba(200,60,60,.1);border:1px solid rgba(200,80,80,.3);border-radius:var(--radius-md);color:#f09090;font-size:.9rem;">
+        ⚠ {{ weed_error }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TAB: DISEASE DETECTION                                 -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="tab-pane" id="tab-disease-det">
+    <h2 class="section-title">Disease detection</h2>
+    <p class="muted-text" style="margin-bottom:1.5rem;">
+      Upload a leaf photo. AI identifies the disease, assesses crop life, and gives you a treatment plan.
+    </p>
+
+    <div class="upload-card">
+      <form method="POST" action="{{ url_for('ai.disease') }}" enctype="multipart/form-data" id="disease-form-dash">
+        <div class="upload-zone-sm" id="disease-drop">
+          <input type="file" name="image" id="disease-file" accept=".jpg,.jpeg,.png,.webp" required>
+          <div id="disease-inner">
+            <p class="uz-label">🍃 Click or drag a leaf photo here</p>
+            <p class="uz-hint">JPG, PNG or WEBP · Max 5 MB</p>
+          </div>
+          <div id="disease-preview" style="display:none;">
+            <img id="disease-prev-img" src="" alt="Preview" style="max-height:120px;border-radius:8px;margin:0 auto;">
+          </div>
+        </div>
+        <button type="submit" class="btn btn--primary btn--full" style="margin-top:1rem;" id="disease-submit">Analyse leaf →</button>
+      </form>
+    </div>
+    <p class="muted-text" style="margin-top:.75rem;font-size:.82rem;">Results appear on the Disease Detection page with full diagnosis.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TAB: SOIL TRACKER                                      -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="tab-pane" id="tab-soil-tracker">
+    <h2 class="section-title">Soil &amp; weather tracker</h2>
+
+    <div class="dash-grid">
+      <!-- Chart panel -->
+      <div class="panel panel--wide">
+        <div class="panel-header"><h2>Soil metrics over time</h2></div>
+        {% if readings %}
+          <div class="chart-wrap"><canvas id="soilChart"></canvas></div>
+        {% else %}
+          <div class="empty-state"><p>No readings yet. Log your first measurement below.</p></div>
+        {% endif %}
+      </div>
+
+      <!-- Log form -->
+      <div class="panel">
+        <div class="panel-header"><h2>Log a reading</h2></div>
+        <form method="POST" action="{{ url_for('dashboard.log_reading') }}" class="dash-form">
+          <div class="form-row-2">
+            <div class="field"><label>Nitrogen</label><input type="number" name="nitrogen" step="0.1" min="0" placeholder="90" required></div>
+            <div class="field"><label>Phosphorus</label><input type="number" name="phosphorus" step="0.1" min="0" placeholder="42" required></div>
+          </div>
+          <div class="form-row-2">
+            <div class="field"><label>Potassium</label><input type="number" name="potassium" step="0.1" min="0" placeholder="43" required></div>
+            <div class="field"><label>pH</label><input type="number" name="ph" step="0.01" min="0" max="14" placeholder="6.5" required></div>
+          </div>
+          <div class="form-row-2">
+            <div class="field"><label>Temp (°C)</label><input type="number" name="temperature" step="0.1" placeholder="22" required></div>
+            <div class="field"><label>Humidity (%)</label><input type="number" name="humidity" step="0.1" min="0" max="100" placeholder="80" required></div>
+          </div>
+          <div class="field"><label>Rainfall (mm)</label><input type="number" name="rainfall" step="0.1" min="0" placeholder="200" required></div>
+          <button type="submit" class="btn btn--primary btn--full">Save reading</button>
+        </form>
+      </div>
+
+      <!-- History table -->
+      <div class="panel panel--wide">
+        <div class="panel-header"><h2>Prediction history</h2></div>
+        {% if readings %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Crop</th><th>Confidence</th><th>N</th><th>P</th><th>K</th><th>pH</th><th>Temp</th><th>Humidity</th><th>Rain</th></tr></thead>
+            <tbody>
+              {% for r in readings %}
+              <tr>
+                <td>{{ r.recorded_at.strftime("%d %b %Y") }}</td>
+                <td>{% if r.recommended_crop %}<span class="crop-badge">{{ r.recommended_crop|title }}</span>{% else %}—{% endif %}</td>
+                <td>{% if r.confidence %}<div class="mini-bar"><div class="mini-fill" style="width:{{ (r.confidence*100)|int }}%"></div></div><span class="conf-text">{{ (r.confidence*100)|round(0)|int }}%</span>{% else %}—{% endif %}</td>
+                <td>{{ r.nitrogen }}</td><td>{{ r.phosphorus }}</td><td>{{ r.potassium }}</td>
+                <td>{{ r.ph }}</td><td>{{ r.temperature }}</td><td>{{ r.humidity }}</td><td>{{ r.rainfall }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <p class="muted-text">No predictions yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TAB: ARTICLES                                          -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="tab-pane" id="tab-articles">
+    <h2 class="section-title">Articles &amp; insights</h2>
+    {% if posts %}
+    <div class="blog-grid">
+      {% for post in posts %}
+        <a href="{{ url_for('blog.article', slug=post.slug) }}" class="blog-card">
+          <div class="blog-card-top">
+            <span class="post-tag">{{ post.tag or 'General' }}</span>
+            <span class="post-date">{{ post.created_at.strftime("%d %b %Y") }}</span>
+          </div>
+          <h2>{{ post.title }}</h2>
+          <p>{{ post.summary }}</p>
+          <span class="blog-read">Read article →</span>
+        </a>
+      {% endfor %}
+    </div>
+    {% else %}
+      <p class="muted-text">No articles published yet.</p>
+    {% endif %}
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  /* ═══ TABS ═══ */
+  var tabs = document.querySelectorAll('.dash-tab');
+  var panes = document.querySelectorAll('.tab-pane');
+  tabs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = 'tab-' + btn.getAttribute('data-tab');
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      panes.forEach(function (p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      var pane = document.getElementById(target);
+      if (pane) pane.classList.add('active');
+    });
+  });
+
+  /* ═══ WEATHER DETECTION ═══ */
+  function fetchWeather(btn, statusEl, locEl, callback) {
+    if (!navigator.geolocation) {
+      statusEl.textContent = 'Geolocation is not supported by your browser.';
+      return;
+    }
+    btn.disabled = true;
+    statusEl.textContent = 'Detecting location…';
+
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        var lat = pos.coords.latitude, lng = pos.coords.longitude;
+        statusEl.textContent = 'Fetching weather…';
+
+        fetch('/dashboard/weather?lat=' + lat + '&lng=' + lng)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.error) {
+              statusEl.textContent = 'Error: ' + data.error;
+              btn.disabled = false;
+              return;
+            }
+            locEl.textContent = data.location_name || (lat.toFixed(2) + '°, ' + lng.toFixed(2) + '°');
+            statusEl.textContent = '';
+            btn.disabled = false;
+            if (callback) callback(data);
+          })
+          .catch(function (err) {
+            statusEl.textContent = 'Network error.';
+            btn.disabled = false;
+          });
+      },
+      function (err) {
+        statusEl.textContent = 'Location access denied. Please allow in your browser settings.';
+        btn.disabled = false;
+      },
+      { timeout: 10000 }
+    );
+  }
+
+  /* Overview weather button */
+  var owBtn = document.getElementById('detect-loc-btn');
+  if (owBtn) {
+    owBtn.addEventListener('click', function () {
+      fetchWeather(owBtn,
+        document.getElementById('weather-status'),
+        document.getElementById('weather-loc'),
+        function (data) {
+          document.getElementById('w-temp').textContent = data.temperature + '°';
+          document.getElementById('w-hum').textContent = data.humidity + '%';
+          document.getElementById('w-rain').textContent = data.rainfall;
+          document.getElementById('w-wind').textContent = data.wind_speed;
+          document.getElementById('weather-desc').textContent = data.description;
+          document.getElementById('weather-grid').style.display = '';
+          owBtn.textContent = '✅ Location detected';
+        }
+      );
+    });
+  }
+
+  /* Crop recommendation weather button */
+  var crBtn = document.getElementById('crop-detect-btn');
+  if (crBtn) {
+    crBtn.addEventListener('click', function () {
+      fetchWeather(crBtn,
+        document.getElementById('crop-weather-status'),
+        document.getElementById('crop-weather-loc'),
+        function (data) {
+          document.getElementById('cr-temp').value = data.temperature;
+          document.getElementById('cr-hum').value = data.humidity;
+          document.getElementById('cr-rain').value = data.rainfall;
+          crBtn.textContent = '✅ Weather auto-filled from ' + data.location_name;
+        }
+      );
+    });
+  }
+
+  /* ═══ FILE PREVIEWS ═══ */
+  function setupFilePreview(inputId, innerId, previewId, imgId) {
+    var inp = document.getElementById(inputId);
+    if (!inp) return;
+    inp.addEventListener('change', function () {
+      var f = this.files[0]; if (!f) return;
+      var inner = document.getElementById(innerId);
+      var prev  = document.getElementById(previewId);
+      var img   = document.getElementById(imgId);
+      img.src = URL.createObjectURL(f);
+      inner.style.display = 'none';
+      prev.style.display = 'block';
+    });
+  }
+  setupFilePreview('weed-file', 'weed-inner', 'weed-preview', 'weed-prev-img');
+  setupFilePreview('disease-file', 'disease-inner', 'disease-preview', 'disease-prev-img');
+
+  /* ═══ CHART ═══ */
+  var chartData = {{ chart_json | safe }};
+  if (chartData.labels.length > 0) {
+    var ctx = document.getElementById('soilChart');
+    if (ctx) {
+      var palette = {
+        ph:          { color: '#c9a84c', label: 'pH' },
+        nitrogen:    { color: '#4a8c3f', label: 'Nitrogen' },
+        phosphorus:  { color: '#6fb85f', label: 'Phosphorus' },
+        potassium:   { color: '#e07b54', label: 'Potassium' },
+        temperature: { color: '#d4a04a', label: 'Temp °C' },
+        humidity:    { color: '#7ab8c7', label: 'Humidity %' },
+        rainfall:    { color: '#5b8fd4', label: 'Rainfall mm' },
+      };
+      var datasets = Object.entries(palette).map(function (e) {
+        return {
+          label: e[1].label, data: chartData[e[0]],
+          borderColor: e[1].color, backgroundColor: e[1].color + '18',
+          borderWidth: 2, pointRadius: 3, tension: .35, fill: false,
+        };
+      });
+      new Chart(ctx, {
+        type: 'line',
+        data: { labels: chartData.labels, datasets: datasets },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { position: 'top', labels: { color: '#c8bc9d', font: { family: "'Jost', sans-serif", size: 12 }, boxWidth: 12 }}},
+          scales: {
+            x: { ticks: { color: '#8a7e65' }, grid: { color: 'rgba(255,255,255,0.04)' }},
+            y: { ticks: { color: '#8a7e65' }, grid: { color: 'rgba(255,255,255,0.04)' }},
+          },
+        },
+      });
+    }
+  }
+
+  {% if prediction or weed_error %}
+  /* Auto-switch to weed detection tab if there are results */
+  var weedTab = document.querySelector('.dash-tab[data-tab="weed-det"]');
+  if (weedTab) weedTab.click();
+  {% endif %}
+})();
+</script>
+{% endblock %}
